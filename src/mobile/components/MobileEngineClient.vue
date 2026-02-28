@@ -159,17 +159,33 @@
       stopPolling () {
         clearTimeout(this.timer)
         this.timer = null
+      },
+      waitForEngine (retries = 0) {
+        const maxRetries = 10
+        const delay = retries < 3 ? 1000 : 2000
+        api.getVersion()
+          .then(() => {
+            console.info('[Motrix Mobile] Engine connected')
+            this.$store.dispatch('app/fetchEngineInfo')
+            this.$store.dispatch('app/fetchEngineOptions')
+            this.startPolling()
+          })
+          .catch(() => {
+            if (retries < maxRetries) {
+              console.info(`[Motrix Mobile] Waiting for engine... (${retries + 1}/${maxRetries})`)
+              setTimeout(() => this.waitForEngine(retries + 1), delay)
+            } else {
+              console.error('[Motrix Mobile] Engine connection failed after retries')
+              this.startPolling()
+            }
+          })
       }
     },
     created () {
       this.bindEngineEvents()
     },
     mounted () {
-      setTimeout(() => {
-        this.$store.dispatch('app/fetchEngineInfo')
-        this.$store.dispatch('app/fetchEngineOptions')
-        this.startPolling()
-      }, 100)
+      this.waitForEngine()
     },
     destroyed () {
       this.$store.dispatch('task/saveSession')

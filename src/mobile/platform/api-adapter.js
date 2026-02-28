@@ -31,13 +31,42 @@ function getDefaultConfig () {
 export default class MobileApi {
   constructor (options = {}) {
     this.options = options
+    this._reconnectTimer = null
+    this._maxReconnectDelay = 10000
+    this._reconnectDelay = 1000
     this.init()
   }
 
   async init () {
     this.config = await this.loadConfig()
     this.client = this.initClient()
+    this._connectWithRetry()
+  }
+
+  _connectWithRetry () {
     this.client.open()
+      .then(() => {
+        console.info('[Mobile] WebSocket connected to aria2')
+        this._reconnectDelay = 1000
+        this.client.on('close', () => {
+          console.warn('[Mobile] WebSocket closed, scheduling reconnect...')
+          this._scheduleReconnect()
+        })
+      })
+      .catch((err) => {
+        console.warn('[Mobile] WebSocket connect failed:', err.message || err)
+        this._scheduleReconnect()
+      })
+  }
+
+  _scheduleReconnect () {
+    if (this._reconnectTimer) return
+    this._reconnectTimer = setTimeout(() => {
+      this._reconnectTimer = null
+      this.client = this.initClient()
+      this._connectWithRetry()
+    }, this._reconnectDelay)
+    this._reconnectDelay = Math.min(this._reconnectDelay * 1.5, this._maxReconnectDelay)
   }
 
   async loadConfig () {
