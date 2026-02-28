@@ -28,7 +28,7 @@
         return [
           { key: 'task', icon: 'menu-task', label: this.$t('task.active'), route: '/task' },
           { key: 'add', icon: 'menu-add', label: this.$t('task.new-task'), action: 'add' },
-          { key: 'preference', icon: 'menu-preference', label: this.$t('preferences.general'), route: '/preference' },
+          { key: 'preference', icon: 'menu-preference', label: this.$t('subnav.preferences'), route: '/preference' },
           { key: 'about', icon: 'menu-about', label: this.$t('app.about'), action: 'about' }
         ]
       }

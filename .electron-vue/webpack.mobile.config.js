@@ -159,7 +159,7 @@ let mobileConfig = {
     extensions: ['.js', '.vue', '.json', '.css'],
     fallback: {
       path: path.join(__dirname, '../src/mobile/platform/path-shim.js'),
-      fs: false,
+      fs: path.join(__dirname, '../src/mobile/platform/node-shims.js'),
       events: require.resolve('events/'),
       buffer: require.resolve('buffer/'),
       stream: false,
