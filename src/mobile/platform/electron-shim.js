@@ -114,9 +114,32 @@ export const nativeTheme = {
   removeListener: noop
 }
 
+export const dialog = {
+  showOpenDialog: () => Promise.resolve({ canceled: true, filePaths: [] }),
+  showMessageBox: () => Promise.resolve({ response: 1, checkboxChecked: false }),
+  showSaveDialog: () => Promise.resolve({ canceled: true, filePath: '' })
+}
+
+export const app = {
+  getVersion: () => '1.8.19',
+  getName: () => 'Motrix',
+  getPath: () => '',
+  getLocale: () => navigator.language || 'en-US',
+  quit: noop,
+  relaunch: noop,
+  isPackaged: true
+}
+
+export const webContents = {
+  getAllWebContents: () => [],
+  getFocusedWebContents: () => null
+}
+
 export const remote = {
   shell,
-  nativeTheme
+  nativeTheme,
+  dialog,
+  app
 }
 
 const electronIs = {

@@ -123,7 +123,18 @@ let mobileConfig = {
     new Webpack.DefinePlugin({
       'process.env.IS_MOBILE': 'true',
       'process.env.PORTABLE_EXECUTABLE_DIR': '""'
-    })
+    }),
+    {
+      apply (compiler) {
+        compiler.hooks.normalModuleFactory.tap('StripNodeScheme', (nmf) => {
+          nmf.hooks.beforeResolve.tap('StripNodeScheme', (resolveData) => {
+            if (resolveData.request.startsWith('node:')) {
+              resolveData.request = resolveData.request.slice(5)
+            }
+          })
+        })
+      }
+    }
   ],
   output: {
     filename: '[name].js',
@@ -140,12 +151,14 @@ let mobileConfig = {
       'electron-is$': path.join(__dirname, '../src/mobile/platform/electron-shim.js'),
       'electron$': path.join(__dirname, '../src/mobile/platform/electron-shim.js'),
       '@electron/remote$': path.join(__dirname, '../src/mobile/platform/electron-shim.js'),
+      '@electron/remote': path.join(__dirname, '../src/mobile/platform/electron-shim.js'),
       'node-fetch$': path.join(__dirname, '../src/mobile/platform/fetch-shim.js'),
-      'ws$': path.join(__dirname, '../src/mobile/platform/ws-shim.js')
+      'ws$': path.join(__dirname, '../src/mobile/platform/ws-shim.js'),
+      'vue-electron$': path.join(__dirname, '../src/mobile/platform/electron-shim.js')
     },
     extensions: ['.js', '.vue', '.json', '.css'],
     fallback: {
-      path: false,
+      path: path.join(__dirname, '../src/mobile/platform/path-shim.js'),
       fs: false,
       events: require.resolve('events/'),
       buffer: require.resolve('buffer/'),

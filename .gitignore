@@ -20,6 +20,7 @@ npm-debug.log.*
 build/*.plist
 dist/electron/*
 dist/web/*
+dist/mobile/*
 
 # release
 release/*
