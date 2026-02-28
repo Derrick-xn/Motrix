@@ -1,4 +1,4 @@
-import { APP_THEME, TASK_STATUS } from '@shared/constants'
+import { APP_THEME } from '@shared/constants'
 import { getFileNameFromFile, isMagnetTask } from '@shared/utils'
 
 export const showItemInFolder = (fullPath, { errorMsg } = {}) => {

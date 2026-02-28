@@ -25,10 +25,8 @@
 
 <script>
   import { mapState } from 'vuex'
-  import { ADD_TASK_TYPE } from '@shared/constants'
   import TaskActions from '@/components/Task/TaskActions'
   import TaskList from '@/components/Task/TaskList'
-  import { getTaskUri, parseHeader } from '@shared/utils'
 
   export default {
     name: 'mo-mobile-task-index',

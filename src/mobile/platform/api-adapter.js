@@ -23,7 +23,7 @@ function getDefaultConfig () {
     split: 16,
     'max-concurrent-downloads': 5,
     'max-connection-per-server': 16,
-    'continue': true,
+    continue: true,
     'user-agent': 'Motrix/1.8.19'
   }
 }
@@ -102,7 +102,7 @@ export default class MobileApi {
     const kebabParams = changeKeysToKebabCase(params)
     this.saveConfigToLocalStorage(kebabParams)
 
-    const { user, system } = separateConfig(kebabParams)
+    const { system } = separateConfig(kebabParams)
     if (!isEmpty(system)) {
       this.updateActiveTaskOption(system)
     }
@@ -222,14 +222,14 @@ export default class MobileApi {
   fetchTaskList (params = {}) {
     const { type } = params
     switch (type) {
-      case 'active':
-        return this.fetchDownloadingTaskList(params)
-      case 'waiting':
-        return this.fetchWaitingTaskList(params)
-      case 'stopped':
-        return this.fetchStoppedTaskList(params)
-      default:
-        return this.fetchDownloadingTaskList(params)
+    case 'active':
+      return this.fetchDownloadingTaskList(params)
+    case 'waiting':
+      return this.fetchWaitingTaskList(params)
+    case 'stopped':
+      return this.fetchStoppedTaskList(params)
+    default:
+      return this.fetchDownloadingTaskList(params)
     }
   }
 

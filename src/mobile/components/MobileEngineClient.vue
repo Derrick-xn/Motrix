@@ -117,7 +117,8 @@
             ? this.$t('task.bt-download-complete-notify')
             : this.$t('task.download-complete-notify')
           try {
-            new Notification(notifyMessage, { body: taskName })
+            const notify = new Notification(notifyMessage, { body: taskName }) // eslint-disable-line no-new
+            notify.onclick = () => {}
           } catch (e) {
             console.warn('[Mobile] Notification not supported:', e)
           }

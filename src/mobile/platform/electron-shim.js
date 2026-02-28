@@ -1,5 +1,4 @@
 const noop = () => {}
-const noopPromise = () => Promise.resolve()
 
 class IpcRendererShim {
   constructor () {
@@ -82,7 +81,7 @@ function getDefaultConfig () {
     split: 16,
     'max-concurrent-downloads': 5,
     'max-connection-per-server': 16,
-    'continue': true,
+    continue: true,
     'user-agent': 'Motrix/1.8.19'
   }
 }

@@ -9,8 +9,6 @@ import store from './store'
 import { getLocaleManager } from '@/components/Locale'
 import Icon from '@/components/Icons/Icon'
 import Msg from '@/components/Msg'
-import { getSystemTheme } from './platform/native-shim'
-
 import '@/components/Theme/Index.scss'
 import './styles/mobile.scss'
 
