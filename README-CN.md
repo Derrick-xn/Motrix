@@ -12,6 +12,19 @@
 
 [English](./README.md) | 简体中文
 
+> **🤖 安卓版说明**
+>
+> 本项目在原版 [Motrix](https://github.com/agalwood/Motrix) 的基础上新增了 **Android 平台支持**，主要改动如下：
+>
+> - **Capacitor 集成** — 复用现有的 Vue 2 + Element UI 前端界面，通过 [Capacitor](https://capacitorjs.com/) 打包为 Android 原生应用。
+> - **原生 aria2 引擎** — 自定义 Capacitor 插件（`Aria2EnginePlugin`）在设备上提取并启动 aria2c 二进制文件，通过 WebSocket JSON-RPC 与前端通信（与桌面版协议一致）。
+> - **Android 前台服务** — 专用的 `Aria2Service` 前台服务保持下载引擎在后台持续运行。
+> - **平台抽象层** — 对 Electron 特有 API（`ipcRenderer`、`@electron/remote`、`electron-is`、Node.js `fs`/`path`）进行了 Web 兼容适配，使现有代码无需修改即可在 WebView 中运行。
+> - **移动端响应式 UI** — 底部导航栏、自适应布局、移动端专属样式，提供接近原生的手机使用体验。
+> - **多架构支持** — 预编译 aria2c 二进制文件，支持 `arm64-v8a`、`armeabi-v7a`、`x86_64`、`x86` 四种架构。
+>
+> 桌面端（macOS、Windows、Linux）功能完全保持不变。
+
 我是个兴趣使然的桌面应用开发者🤓，利用搬砖之余开发了 Motrix。
 
 Motrix 是一款全能的下载工具，支持下载 HTTP、FTP、BT、磁力链等资源。它的界面简洁易用，希望大家喜欢 👻。

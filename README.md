@@ -12,6 +12,19 @@
 
 English | [简体中文](./README-CN.md)
 
+> **🤖 Android Port**
+>
+> This fork adds **Android support** on top of the original [Motrix](https://github.com/agalwood/Motrix) project. The key changes include:
+>
+> - **Capacitor Integration** — The existing Vue 2 + Element UI web interface is reused via [Capacitor](https://capacitorjs.com/) to run natively on Android.
+> - **Native aria2 Engine** — A custom Capacitor plugin (`Aria2EnginePlugin`) extracts and launches the aria2c binary on the device, communicating with the UI through WebSocket JSON-RPC (same protocol as the desktop version).
+> - **Android Foreground Service** — A dedicated `Aria2Service` keeps the download engine alive in the background.
+> - **Platform Abstraction Layer** — Electron-specific APIs (`ipcRenderer`, `@electron/remote`, `electron-is`, Node.js `fs`/`path`) are shimmed with web-compatible implementations, allowing the existing codebase to run in a WebView without modification.
+> - **Mobile-Responsive UI** — Bottom navigation, adaptive layouts, and mobile-optimized styles for a native-like experience on phones and tablets.
+> - **Multi-Architecture Support** — Pre-built aria2c binaries for `arm64-v8a`, `armeabi-v7a`, `x86_64`, and `x86`.
+>
+> The desktop platforms (macOS, Windows, Linux) remain fully functional and unchanged.
+
 Motrix is a full-featured download manager that supports downloading HTTP, FTP, BitTorrent, Magnet, etc.
 
 Motrix has a clean and easy to use interface. I hope you will like it 👻.
