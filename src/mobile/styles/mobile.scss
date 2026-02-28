@@ -1,0 +1,184 @@
+html.mobile {
+  font-size: 14px;
+  -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
+}
+
+html.mobile,
+html.mobile body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.mobile {
+  /* Hide desktop-only elements */
+  .title-bar,
+  .aside,
+  .hidden-sm-and-down {
+    display: none !important;
+  }
+
+  /* Mobile container layout */
+  #container {
+    height: 100%;
+    flex-direction: column !important;
+  }
+
+  /* Task list mobile optimization */
+  .task-list {
+    padding: 8px 12px 80px;
+  }
+
+  .task-item {
+    margin-bottom: 8px;
+    border-radius: 12px;
+    padding: 12px;
+  }
+
+  /* No task state */
+  .no-task-inner {
+    padding-top: 200px;
+    background-size: 140px;
+  }
+
+  /* Dialog mobile optimization */
+  .el-dialog {
+    margin-top: 5vh !important;
+    border-radius: 16px;
+  }
+
+  .el-dialog__wrapper {
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Form adjustments for mobile */
+  .el-form-item {
+    margin-bottom: 16px;
+  }
+
+  .el-form-item__label {
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  /* Button touch targets */
+  .el-button {
+    min-height: 40px;
+    border-radius: 8px;
+  }
+
+  .el-button--mini {
+    min-height: 32px;
+  }
+
+  /* Input touch targets */
+  .el-input__inner {
+    height: 40px;
+    line-height: 40px;
+    border-radius: 8px;
+    font-size: 14px;
+  }
+
+  .el-input--mini .el-input__inner {
+    height: 36px;
+    line-height: 36px;
+  }
+
+  .el-textarea__inner {
+    border-radius: 8px;
+    font-size: 14px;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+
+  /* Preference panel mobile */
+  .subnav {
+    width: 100% !important;
+    max-width: none;
+    border-right: none;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+    max-height: 44px;
+  }
+
+  .preference-content {
+    padding: 16px;
+  }
+
+  /* Panel header */
+  .panel-header {
+    padding: 12px 16px !important;
+    height: auto !important;
+  }
+
+  /* Message adjustments */
+  .el-message {
+    min-width: auto;
+    max-width: 90vw;
+    border-radius: 10px;
+    padding: 12px 16px;
+  }
+
+  /* Task detail mobile */
+  .task-detail-dialog {
+    width: 95vw !important;
+    max-width: none;
+    border-radius: 16px;
+  }
+
+  /* About panel mobile */
+  .about-panel {
+    width: 90vw !important;
+  }
+
+  /* Speed indicator */
+  .mo-speedometer {
+    bottom: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+    right: 12px !important;
+  }
+
+  /* Select dropdown */
+  .el-select-dropdown {
+    border-radius: 10px;
+  }
+
+  /* Tabs */
+  .el-tabs__header {
+    margin-bottom: 12px;
+  }
+
+  .el-tabs__item {
+    font-size: 14px;
+    height: 36px;
+    line-height: 36px;
+  }
+
+  /* Checkbox size */
+  .el-checkbox__label {
+    font-size: 13px;
+  }
+
+  /* Safe area padding for content */
+  .panel-content {
+    padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+
+/* Dark mode mobile adjustments */
+html.mobile.theme-dark {
+  .mobile-nav {
+    background: rgba(20, 20, 35, 0.95);
+  }
+}

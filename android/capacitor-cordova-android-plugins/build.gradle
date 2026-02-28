@@ -1,0 +1,42 @@
+ext {
+    cordovaAndroidVersion = '10.1.1'
+}
+
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.2.1'
+    }
+}
+
+apply plugin: 'com.android.library'
+
+android {
+    namespace "capacitor.cordova.android.plugins"
+    compileSdkVersion 34
+    defaultConfig {
+        minSdkVersion 24
+        targetSdkVersion 34
+    }
+    sourceSets {
+        main {
+            java.srcDirs = ['src/main/java']
+            res.srcDirs = ['src/main/res']
+            assets.srcDirs = ['src/main/assets']
+        }
+    }
+}
+
+repositories {
+    google()
+    mavenCentral()
+    flatDir {
+        dirs 'src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+}

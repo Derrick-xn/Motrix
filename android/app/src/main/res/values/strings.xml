@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Motrix</string>
+    <string name="title_activity_main">Motrix</string>
+    <string name="package_name">app.motrix.android</string>
+    <string name="custom_url_scheme">motrix</string>
+</resources>
