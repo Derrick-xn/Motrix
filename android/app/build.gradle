@@ -12,6 +12,10 @@ android {
         versionName "1.0.0"
     }
 
+    aaptOptions {
+        noCompress "aria2c-arm64", "aria2c-arm", "aria2c-x86_64", "aria2c-x86"
+    }
+
     buildTypes {
         release {
             minifyEnabled false

@@ -507,10 +507,44 @@ export const decodeThunderLink = (url = '') => {
   return result
 }
 
+const ZERO_WIDTH_CHARACTERS_REGEX = /[\u200B-\u200D\uFEFF]/g
+const FULL_WIDTH_LINK_SYMBOLS = {
+  '：': ':',
+  '？': '?',
+  '＆': '&',
+  '／': '/'
+}
+const FULL_WIDTH_LINK_SYMBOLS_REGEX = /[：？＆／]/g
+
+export const normalizeTaskLink = (url = '') => {
+  let result = `${url}`.trim()
+  if (!result) {
+    return result
+  }
+
+  result = result
+    .replace(ZERO_WIDTH_CHARACTERS_REGEX, '')
+    .replace(FULL_WIDTH_LINK_SYMBOLS_REGEX, (ch) => FULL_WIDTH_LINK_SYMBOLS[ch] || ch)
+    .replace(/&amp;/gi, '&')
+
+  // Copying from webpages/apps may include wrappers like <magnet:...>.
+  if (result.startsWith('<') && result.endsWith('>')) {
+    result = result.substring(1, result.length - 1).trim()
+  }
+
+  if (/^magnet:/i.test(result)) {
+    result = `magnet:${result.substring('magnet:'.length)}`
+    result = result.replace(/^magnet:\/\/\??/i, 'magnet:?')
+  }
+
+  return result
+}
+
 export const splitTaskLinks = (links = '') => {
   const temp = compact(splitTextRows(links))
   const result = temp.map((item) => {
-    return decodeThunderLink(item)
+    const decoded = decodeThunderLink(item)
+    return normalizeTaskLink(decoded)
   })
   return result
 }

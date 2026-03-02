@@ -12,28 +12,6 @@ import Msg from '@/components/Msg'
 import '@/components/Theme/Index.scss'
 import './styles/mobile.scss'
 
-async function startNativeEngine () {
-  try {
-    const { Capacitor } = await import('@capacitor/core')
-    if (Capacitor.isNativePlatform()) {
-      const Aria2Engine = (await import('./plugins/aria2-engine')).default
-      console.info('[Motrix Mobile] Starting native aria2 engine...')
-      const result = await Aria2Engine.startEngine({
-        rpcPort: 16800,
-        rpcSecret: '',
-        dir: '/storage/emulated/0/Download',
-        maxConcurrentDownloads: 5,
-        maxConnectionPerServer: 16
-      })
-      console.info('[Motrix Mobile] Engine start result:', result)
-      return result
-    }
-  } catch (e) {
-    console.warn('[Motrix Mobile] Failed to start native engine:', e)
-  }
-  return null
-}
-
 function init (config) {
   Vue.http = Vue.prototype.$http = null
   Vue.config.productionTip = false
@@ -81,8 +59,7 @@ function init (config) {
   }, 400)
 }
 
-startNativeEngine()
-  .then(() => store.dispatch('preference/fetchPreference'))
+store.dispatch('preference/fetchPreference')
   .then((config) => {
     console.info('[Motrix Mobile] load preference:', config)
     init(config)

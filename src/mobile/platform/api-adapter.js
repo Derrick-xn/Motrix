@@ -99,9 +99,9 @@ export default class MobileApi {
 
   initClient () {
     const {
-      rpcListenPort: port,
-      rpcSecret: secret
-    } = this.config
+      rpcListenPort: port = 16800,
+      rpcSecret: secret = ''
+    } = this.config || {}
     const host = ENGINE_RPC_HOST
     return new Aria2({
       host,
@@ -120,11 +120,9 @@ export default class MobileApi {
       })
   }
 
-  fetchPreference () {
-    return new Promise((resolve) => {
-      this.config = this.loadConfig()
-      resolve(this.config)
-    })
+  async fetchPreference () {
+    this.config = await this.loadConfig()
+    return this.config
   }
 
   savePreference (params = {}) {
