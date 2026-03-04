@@ -27,6 +27,18 @@ android {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
+
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging true
+        }
+    }
+
+    sourceSets {
+        main {
+            jniLibs.srcDirs += ["$buildDir/aria2-jni"]
+        }
+    }
 }
 
 repositories {
@@ -44,3 +56,33 @@ dependencies {
 }
 
 apply from: 'capacitor.build.gradle'
+
+def aria2AssetDir = file("src/main/assets/engine")
+def aria2JniDir = file("$buildDir/aria2-jni")
+
+tasks.register("prepareAria2JniLibs") {
+    doLast {
+        copy {
+            from("${aria2AssetDir}/aria2c-arm64")
+            into("${aria2JniDir}/arm64-v8a")
+            rename { "libaria2c.so" }
+        }
+        copy {
+            from("${aria2AssetDir}/aria2c-arm")
+            into("${aria2JniDir}/armeabi-v7a")
+            rename { "libaria2c.so" }
+        }
+        copy {
+            from("${aria2AssetDir}/aria2c-x86_64")
+            into("${aria2JniDir}/x86_64")
+            rename { "libaria2c.so" }
+        }
+        copy {
+            from("${aria2AssetDir}/aria2c-x86")
+            into("${aria2JniDir}/x86")
+            rename { "libaria2c.so" }
+        }
+    }
+}
+
+preBuild.dependsOn("prepareAria2JniLibs")

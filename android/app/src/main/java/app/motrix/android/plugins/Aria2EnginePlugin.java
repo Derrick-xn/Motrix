@@ -41,7 +41,7 @@ public class Aria2EnginePlugin extends Plugin {
                 return;
             }
 
-            String aria2Path = extractAria2Binary();
+            String aria2Path = resolveAria2Binary();
             if (aria2Path == null) {
                 JSObject result = new JSObject();
                 result.put("started", false);
@@ -158,6 +158,21 @@ public class Aria2EnginePlugin extends Plugin {
         call.resolve(result);
     }
 
+    private String resolveAria2Binary() {
+        String libDir = getContext().getApplicationInfo().nativeLibraryDir;
+        if (libDir != null) {
+            String[] candidates = new String[] { "libaria2c.so", "aria2c" };
+            for (String name : candidates) {
+                File libBinary = new File(libDir, name);
+                if (libBinary.exists() && (libBinary.canExecute() || libBinary.setExecutable(true, false))) {
+                    Log.i(TAG, "Using aria2c from nativeLibraryDir: " + libBinary.getAbsolutePath());
+                    return libBinary.getAbsolutePath();
+                }
+            }
+        }
+        return extractAria2Binary();
+    }
+
     private String extractAria2Binary() {
         try {
             String abi = android.os.Build.SUPPORTED_ABIS[0];
@@ -178,11 +193,19 @@ public class Aria2EnginePlugin extends Plugin {
 
             File outputFile = new File(getContext().getFilesDir(), "aria2c");
 
-            if (outputFile.exists() && outputFile.canExecute()) {
+            if (outputFile.exists() && outputFile.canExecute() && outputFile.length() > 0) {
                 return outputFile.getAbsolutePath();
             }
 
-            InputStream is = getContext().getAssets().open(assetPath);
+            InputStream is;
+            try {
+                is = getContext().getAssets().open(assetPath);
+            } catch (IOException e) {
+                String fallbackPath = assetPath.replace("engine/", "");
+                Log.w(TAG, "Asset not found at " + assetPath + ", trying " + fallbackPath, e);
+                assetPath = fallbackPath;
+                is = getContext().getAssets().open(assetPath);
+            }
             FileOutputStream fos = new FileOutputStream(outputFile);
             byte[] buffer = new byte[8192];
             int read;

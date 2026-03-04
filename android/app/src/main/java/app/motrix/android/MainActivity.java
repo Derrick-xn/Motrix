@@ -49,7 +49,7 @@ public class MainActivity extends BridgeActivity {
                     }
                 }
 
-                String binaryPath = extractBinary();
+                String binaryPath = resolveAria2Binary();
                 if (binaryPath == null) {
                     Log.e(TAG, "Failed to extract aria2 binary");
                     return;
@@ -124,6 +124,21 @@ public class MainActivity extends BridgeActivity {
         }).start();
     }
 
+    private String resolveAria2Binary() {
+        String libDir = getApplicationInfo().nativeLibraryDir;
+        if (libDir != null) {
+            String[] candidates = new String[] { "libaria2c.so", "aria2c" };
+            for (String name : candidates) {
+                File libBinary = new File(libDir, name);
+                if (libBinary.exists() && (libBinary.canExecute() || libBinary.setExecutable(true, false))) {
+                    Log.i(TAG, "Using aria2c from nativeLibraryDir: " + libBinary.getAbsolutePath());
+                    return libBinary.getAbsolutePath();
+                }
+            }
+        }
+        return extractBinary();
+    }
+
     private String extractBinary() {
         try {
             String abi = Build.SUPPORTED_ABIS[0];
@@ -148,7 +163,15 @@ public class MainActivity extends BridgeActivity {
             }
 
             Log.i(TAG, "Extracting aria2c from assets: " + assetName + " (ABI: " + abi + ")");
-            InputStream is = getAssets().open(assetName);
+            InputStream is;
+            try {
+                is = getAssets().open(assetName);
+            } catch (IOException e) {
+                String fallbackName = assetName.replace("engine/", "");
+                Log.w(TAG, "Asset not found at " + assetName + ", trying " + fallbackName, e);
+                assetName = fallbackName;
+                is = getAssets().open(assetName);
+            }
             FileOutputStream fos = new FileOutputStream(outputFile);
             byte[] buffer = new byte[65536];
             int read;

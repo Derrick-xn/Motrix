@@ -550,8 +550,9 @@ export const splitTaskLinks = (links = '') => {
 }
 
 export const detectResource = (content) => {
+  const normalized = `${content}`.toLowerCase()
   return RESOURCE_TAGS.some((type) => {
-    return content.includes(type)
+    return normalized.includes(type)
   })
 }
 

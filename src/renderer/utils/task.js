@@ -111,13 +111,36 @@ export const buildOption = (type, form) => {
   return result
 }
 
+const normalizeUrisInput = (uris) => {
+  if (Array.isArray(uris)) {
+    return uris.join('\n')
+  }
+  if (!uris) {
+    return ''
+  }
+  if (typeof uris === 'string') {
+    return uris
+  }
+  if (typeof uris === 'object') {
+    const targetValue = uris?.target?.value
+    if (typeof targetValue === 'string') {
+      return targetValue
+    }
+    const value = uris?.value
+    if (typeof value === 'string') {
+      return value
+    }
+  }
+  return `${uris}`
+}
+
 export const buildUriPayload = (form) => {
   let { uris, out } = form
+  uris = normalizeUrisInput(uris)
+  uris = splitTaskLinks(uris)
   if (isEmpty(uris)) {
     throw new Error('task.new-task-uris-required')
   }
-
-  uris = splitTaskLinks(uris)
   const curlHeaders = buildHeadersFromCurl(uris)
   uris = buildUrisFromCurl(uris)
   const outs = buildOuts(uris, out)
