@@ -195,6 +195,18 @@
         this.torrentFileName = ''
         this.form = initTaskForm(this.$store.state)
       },
+      syncUrisFromInput () {
+        if (this.type !== ADD_TASK_TYPE.URI) return
+        const input = this.$refs.uri
+        const el = input && (input.$el || input)
+        if (!el) return
+        const textarea = el.querySelector && el.querySelector('textarea')
+        if (!textarea) return
+        const raw = textarea.value
+        if (!isEmpty(raw) && this.form.uris !== raw) {
+          this.form.uris = raw
+        }
+      },
       addTask (type, form) {
         if (type === ADD_TASK_TYPE.URI) {
           const payload = buildUriPayload(form)
@@ -209,6 +221,7 @@
         }
       },
       submitForm (formName) {
+        this.syncUrisFromInput()
         this.$refs[formName].validate(valid => {
           if (!valid) return false
           try {
