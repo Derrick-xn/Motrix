@@ -39,3 +39,4 @@ android/app/src/main/assets/capacitor.plugins.json
 
 # aria2c engine binaries (download separately, ~250MB)
 android/app/src/main/assets/engine/
+build/android/
