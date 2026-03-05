@@ -65,7 +65,12 @@ const actions = {
     return api.fetchTaskList({ type: state.currentList })
       .then((data) => {
         const { selectedGidList, pendingRemoveGids } = state
-        const pendingSet = new Set(pendingRemoveGids)
+        const dataGids = data.map((task) => task.gid)
+        const newPending = pendingRemoveGids.filter((gid) => dataGids.includes(gid))
+        if (newPending.length !== pendingRemoveGids.length) {
+          commit('UPDATE_PENDING_REMOVE_GIDS', newPending)
+        }
+        const pendingSet = new Set(newPending)
         const filtered = data.filter((task) => !pendingSet.has(task.gid))
         commit('UPDATE_TASK_LIST', filtered)
 
@@ -310,14 +315,16 @@ const actions = {
     commit('UPDATE_SELECTED_GID_LIST', state.selectedGidList.filter((gid) => !pending.includes(gid)))
     commit('UPDATE_PENDING_REMOVE_GIDS', Array.from(new Set([...state.pendingRemoveGids, ...pending])))
     return api.batchRemoveTask({ gids })
-      .catch((err) => {
-        throw err
+      .then(() => {
+        dispatch('fetchList')
+        dispatch('saveSession')
       })
-      .finally(() => {
+      .catch((err) => {
         const remaining = state.pendingRemoveGids.filter((gid) => !pending.includes(gid))
         commit('UPDATE_PENDING_REMOVE_GIDS', remaining)
         dispatch('fetchList')
         dispatch('saveSession')
+        throw err
       })
   }
 }
