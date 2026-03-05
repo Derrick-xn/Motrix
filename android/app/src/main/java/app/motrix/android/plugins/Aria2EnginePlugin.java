@@ -21,6 +21,11 @@ public class Aria2EnginePlugin extends Plugin {
     private static final String TAG = "Aria2Engine";
     private Process aria2Process;
     private int aria2Pid = -1;
+    private static final String DEFAULT_BT_TRACKERS =
+        "udp://tracker.opentrackr.org:1337/announce," +
+        "udp://tracker.openbittorrent.com:80/announce," +
+        "udp://tracker.torrent.eu.org:451/announce," +
+        "udp://exodus.desync.com:6969/announce";
 
     @PluginMethod()
     public void startEngine(PluginCall call) {
@@ -50,7 +55,11 @@ public class Aria2EnginePlugin extends Plugin {
                 return;
             }
 
-            String sessionFile = getContext().getFilesDir().getAbsolutePath() + "/aria2.session";
+            String filesDir = getContext().getFilesDir().getAbsolutePath();
+            String cacheDir = getContext().getCacheDir().getAbsolutePath();
+            String sessionFile = filesDir + "/aria2.session";
+            String dhtFile = cacheDir + "/dht.dat";
+            String dht6File = cacheDir + "/dht6.dat";
             File session = new File(sessionFile);
             if (!session.exists()) {
                 session.createNewFile();
@@ -81,11 +90,15 @@ public class Aria2EnginePlugin extends Plugin {
                 "--max-overall-download-limit=0",
                 "--max-download-limit=0",
                 "--enable-dht=true",
+                "--dht-listen-port=6881-6999",
+                "--dht-file-path=" + dhtFile,
+                "--dht-file-path6=" + dht6File,
                 "--bt-enable-lpd=true",
                 "--enable-peer-exchange=true",
                 "--follow-torrent=true",
                 "--check-integrity=false",
                 "--bt-save-metadata=true",
+                "--bt-tracker=" + DEFAULT_BT_TRACKERS,
                 "--listen-port=6881-6999",
                 "--daemon=false"
             );

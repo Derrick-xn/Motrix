@@ -3,6 +3,7 @@
     class="task-list"
     v-if="taskList.length > 0"
     attribute="attr"
+    :disable-touch="isMobile"
     @change="handleDragSelectChange"
   >
     <div
@@ -45,7 +46,12 @@
       ...mapState('task', {
         taskList: state => state.taskList,
         selectedGidList: state => state.selectedGidList
-      })
+      }),
+      isMobile () {
+        return typeof document !== 'undefined' &&
+          document.documentElement &&
+          document.documentElement.classList.contains('mobile')
+      }
     },
     methods: {
       handleDragSelectChange (selectedList) {

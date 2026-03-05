@@ -25,6 +25,9 @@
 
 <script>
   import { mapState } from 'vuex'
+  import { commands } from '@/components/CommandManager/instance'
+  import { ADD_TASK_TYPE } from '@shared/constants'
+  import { getTaskUri, parseHeader } from '@shared/utils'
   import TaskActions from '@/components/Task/TaskActions'
   import TaskList from '@/components/Task/TaskList'
 
@@ -45,6 +48,9 @@
         taskList: state => state.taskList,
         selectedGidList: state => state.selectedGidList
       }),
+      ...mapState('preference', {
+        noConfirmBeforeDelete: state => state.config.noConfirmBeforeDeleteTask
+      }),
       ...mapState('app', {
         stat: state => state.stat
       }),
@@ -60,6 +66,86 @@
       status: 'onStatusChange'
     },
     methods: {
+      directAddTask (uri, options = {}) {
+        const uris = [uri]
+        const payload = {
+          uris,
+          options: {
+            ...options
+          }
+        }
+        this.$store.dispatch('task/addUri', payload)
+          .catch((err) => {
+            this.$msg.error(err.message)
+          })
+      },
+      showAddTaskDialog (uri, options = {}) {
+        const {
+          header,
+          ...rest
+        } = options
+        const headers = parseHeader(header)
+        const newOptions = {
+          ...rest,
+          ...headers
+        }
+
+        this.$store.dispatch('app/updateAddTaskUrl', uri)
+        this.$store.dispatch('app/updateAddTaskOptions', newOptions)
+        this.$store.dispatch('app/showAddTaskDialog', ADD_TASK_TYPE.URI)
+      },
+      removeTask (task, taskName, isRemoveWithFiles = false) {
+        this.$store.dispatch('task/forcePauseTask', task)
+          .finally(() => {
+            return this.removeTaskItem(task, taskName, isRemoveWithFiles)
+          })
+      },
+      removeTaskRecord (task, taskName, isRemoveWithFiles = false) {
+        this.$store.dispatch('task/forcePauseTask', task)
+          .finally(() => {
+            return this.removeTaskRecordItem(task, taskName, isRemoveWithFiles)
+          })
+      },
+      async removeTaskItem (task, taskName) {
+        try {
+          await this.$store.dispatch('task/removeTask', task)
+          this.$msg.success(this.$t('task.delete-task-success', {
+            taskName
+          }))
+        } catch ({ code }) {
+          if (code === 1) {
+            this.$msg.error(this.$t('task.delete-task-fail', {
+              taskName
+            }))
+          }
+        }
+      },
+      async removeTaskRecordItem (task, taskName) {
+        try {
+          await this.$store.dispatch('task/removeTaskRecord', task)
+          this.$msg.success(this.$t('task.remove-record-success', {
+            taskName
+          }))
+        } catch ({ code }) {
+          if (code === 1) {
+            this.$msg.error(this.$t('task.remove-record-fail', {
+              taskName
+            }))
+          }
+        }
+      },
+      removeTasks (taskList) {
+        const gids = taskList.map((task) => task.gid)
+        this.$store.dispatch('task/batchRemoveTask', gids)
+          .then(() => {
+            this.$msg.success(this.$t('task.batch-delete-task-success'))
+          })
+          .catch(({ code }) => {
+            if (code === 1) {
+              this.$msg.error(this.$t('task.batch-delete-task-fail'))
+            }
+          })
+      },
       onStatusChange () {
         this.changeCurrentList()
       },
@@ -76,28 +162,147 @@
         if (key === 'stopped') return this.stat.numStopped
         return 0
       },
-      handleDeleteTask (payload) {
+      handlePauseTask (payload) {
         const { task, taskName } = payload
+        this.$msg.info(this.$t('task.download-pause-message', { taskName }))
+        this.$store.dispatch('task/pauseTask', task)
+          .catch(({ code }) => {
+            if (code === 1) {
+              this.$msg.error(this.$t('task.pause-task-fail', { taskName }))
+            }
+          })
+      },
+      handleResumeTask (payload) {
+        const { task, taskName } = payload
+        this.$store.dispatch('task/resumeTask', task)
+          .catch(({ code }) => {
+            if (code === 1) {
+              this.$msg.error(this.$t('task.resume-task-fail', {
+                taskName
+              }))
+            }
+          })
+      },
+      handleStopTaskSeeding (payload) {
+        const { task } = payload
+        this.$store.dispatch('task/stopSeeding', task)
+        this.$msg.info({
+          message: this.$t('task.bt-stopping-seeding-tip'),
+          duration: 8000
+        })
+      },
+      handleRestartTask (payload) {
+        const { task, taskName, showDialog } = payload
+        const { gid } = task
+        const uri = getTaskUri(task)
+
+        this.$store.dispatch('task/getTaskOption', gid)
+          .then((data) => {
+            const { dir, header, split } = data
+            const options = {
+              dir,
+              header,
+              split,
+              out: taskName
+            }
+
+            if (showDialog) {
+              this.showAddTaskDialog(uri, options)
+            } else {
+              this.directAddTask(uri, options)
+              this.$store.dispatch('task/removeTaskRecord', task)
+            }
+          })
+      },
+      handleDeleteTask (payload) {
+        const { task, taskName, deleteWithFiles } = payload
+        const { noConfirmBeforeDelete } = this
+
+        if (noConfirmBeforeDelete) {
+          this.removeTask(task, taskName, deleteWithFiles)
+          return
+        }
+
         if (confirm(this.$t('task.delete-task-confirm', { taskName }))) {
-          this.$store.dispatch('task/forcePauseTask', task)
-            .finally(() => {
-              this.$store.dispatch('task/removeTask', task)
-                .then(() => this.$msg.success(this.$t('task.delete-task-success', { taskName })))
-                .catch(() => this.$msg.error(this.$t('task.delete-task-fail', { taskName })))
-            })
+          this.removeTask(task, taskName, deleteWithFiles)
         }
       },
       handleDeleteTaskRecord (payload) {
-        const { task, taskName } = payload
-        if (confirm(this.$t('task.remove-record-confirm', { taskName }))) {
-          this.$store.dispatch('task/removeTaskRecord', task)
-            .then(() => this.$msg.success(this.$t('task.remove-record-success', { taskName })))
-            .catch(() => this.$msg.error(this.$t('task.remove-record-fail', { taskName })))
+        const { task, taskName, deleteWithFiles } = payload
+        const { noConfirmBeforeDelete } = this
+
+        if (noConfirmBeforeDelete) {
+          this.removeTaskRecord(task, taskName, deleteWithFiles)
+          return
         }
+
+        if (confirm(this.$t('task.remove-record-confirm', { taskName }))) {
+          this.removeTaskRecord(task, taskName, deleteWithFiles)
+        }
+      },
+      handleBatchDeleteTask (payload) {
+        const { deleteWithFiles } = payload
+        const { selectedGidList, taskList, noConfirmBeforeDelete } = this
+        if (selectedGidList.length === 0) return
+
+        const selectedTaskList = taskList.filter((task) => {
+          return selectedGidList.includes(task.gid)
+        })
+
+        if (noConfirmBeforeDelete) {
+          this.removeTasks(selectedTaskList, deleteWithFiles)
+          return
+        }
+
+        const count = `${selectedGidList.length}`
+        if (confirm(this.$t('task.batch-delete-task-confirm', { count }))) {
+          this.removeTasks(selectedTaskList, deleteWithFiles)
+        }
+      },
+      handleCopyTaskLink (payload) {
+        const { task } = payload
+        const uri = getTaskUri(task)
+        if (!navigator.clipboard) {
+          this.$msg.error(this.$t('task.copy-link-fail'))
+          return
+        }
+        navigator.clipboard.writeText(uri)
+          .then(() => {
+            this.$msg.success(this.$t('task.copy-link-success'))
+          })
+          .catch(() => {
+            this.$msg.error(this.$t('task.copy-link-fail'))
+          })
+      },
+      handleShowTaskInfo (payload) {
+        const { task } = payload
+        this.$store.dispatch('task/showTaskDetail', task)
       }
     },
     created () {
       this.changeCurrentList()
+    },
+    mounted () {
+      commands.on('pause-task', this.handlePauseTask)
+      commands.on('resume-task', this.handleResumeTask)
+      commands.on('stop-task-seeding', this.handleStopTaskSeeding)
+      commands.on('restart-task', this.handleRestartTask)
+      commands.on('delete-task', this.handleDeleteTask)
+      commands.on('delete-task-record', this.handleDeleteTaskRecord)
+      commands.on('batch-delete-task', this.handleBatchDeleteTask)
+      commands.on('copy-task-link', this.handleCopyTaskLink)
+      commands.on('show-task-info', this.handleShowTaskInfo)
+    },
+    destroyed () {
+      commands.off('pause-task', this.handlePauseTask)
+      commands.off('resume-task', this.handleResumeTask)
+      commands.off('stop-task-seeding', this.handleStopTaskSeeding)
+      commands.off('restart-task', this.handleRestartTask)
+      commands.off('delete-task', this.handleDeleteTask)
+      commands.off('delete-task-record', this.handleDeleteTaskRecord)
+      commands.off('batch-delete-task', this.handleBatchDeleteTask)
+      commands.off('copy-task-link', this.handleCopyTaskLink)
+      commands.off('show-task-info', this.handleShowTaskInfo)
     }
   }
 </script>

@@ -1,7 +1,7 @@
 <template>
   <div
     ref="container"
-    style="position: relative; user-select: none; overflow-x: hidden; touch-action: none;"
+    :style="containerStyle"
   >
     <slot v-bind="{ selected: intersected }" />
   </div>
@@ -31,6 +31,10 @@
         type: String,
         required: true
       },
+      disableTouch: {
+        type: Boolean,
+        default: false
+      },
       color: {
         type: String,
         default: '#bad7fb'
@@ -44,6 +48,16 @@
       return {
         intersected: [],
         children: []
+      }
+    },
+    computed: {
+      containerStyle () {
+        return {
+          position: 'relative',
+          userSelect: 'none',
+          overflowX: 'hidden',
+          touchAction: this.disableTouch ? 'auto' : 'none'
+        }
       }
     },
     watch: {
@@ -76,7 +90,9 @@
         start = getCoords(e, containerRect)
         end = start
         document.addEventListener('mousemove', drag)
-        document.addEventListener('touchmove', touchMove)
+        if (!self.disableTouch) {
+          document.addEventListener('touchmove', touchMove)
+        }
 
         box.style.top = start.y + 'px'
         box.style.left = start.x + 'px'
@@ -109,21 +125,31 @@
         box.style.height = 0
 
         document.removeEventListener('mousemove', drag)
-        document.removeEventListener('touchmove', touchMove)
+        if (!self.disableTouch) {
+          document.removeEventListener('touchmove', touchMove)
+        }
         box.remove()
       }
 
       container.addEventListener('mousedown', startDrag)
-      container.addEventListener('touchstart', touchStart)
+      if (!this.disableTouch) {
+        container.addEventListener('touchstart', touchStart)
+      }
 
       document.addEventListener('mouseup', endDrag)
-      document.addEventListener('touchend', endDrag)
+      if (!this.disableTouch) {
+        document.addEventListener('touchend', endDrag)
+      }
 
       this.$once('on:destroy', () => {
         container.removeEventListener('mousedown', startDrag)
-        container.removeEventListener('touchstart', touchStart)
+        if (!this.disableTouch) {
+          container.removeEventListener('touchstart', touchStart)
+        }
         document.removeEventListener('mouseup', endDrag)
-        document.removeEventListener('touchend', endDrag)
+        if (!this.disableTouch) {
+          document.removeEventListener('touchend', endDrag)
+        }
       })
     },
     methods: {
