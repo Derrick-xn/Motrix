@@ -12,7 +12,8 @@ const state = {
   currentTaskPeers: [],
   seedingList: [],
   taskList: [],
-  selectedGidList: []
+  selectedGidList: [],
+  pendingRemoveGids: []
 }
 
 const getters = {
@@ -24,6 +25,9 @@ const mutations = {
   },
   UPDATE_TASK_LIST (state, taskList) {
     state.taskList = taskList
+  },
+  UPDATE_PENDING_REMOVE_GIDS (state, gids) {
+    state.pendingRemoveGids = gids
   },
   UPDATE_SELECTED_GID_LIST (state, gidList) {
     state.selectedGidList = gidList
@@ -60,9 +64,11 @@ const actions = {
   fetchList ({ commit, state }) {
     return api.fetchTaskList({ type: state.currentList })
       .then((data) => {
-        commit('UPDATE_TASK_LIST', data)
-        const { selectedGidList } = state
-        const gids = data.map((task) => task.gid)
+        const { selectedGidList, pendingRemoveGids } = state
+        const pendingSet = new Set(pendingRemoveGids)
+        const filtered = data.filter((task) => !pendingSet.has(task.gid))
+        commit('UPDATE_TASK_LIST', filtered)
+        const gids = filtered.map((task) => task.gid)
         const list = intersection(selectedGidList, gids)
         commit('UPDATE_SELECTED_GID_LIST', list)
       })
@@ -247,9 +253,20 @@ const actions = {
     if (gids.length === 0) return
     return api.batchPauseTask({ gids })
   },
-  batchRemoveTask ({ dispatch }, gids) {
+  batchRemoveTask ({ state, commit, dispatch }, gids) {
+    if (!gids || gids.length === 0) return Promise.resolve()
+    const pending = Array.from(new Set([...gids]))
+    const filtered = state.taskList.filter((task) => !pending.includes(task.gid))
+    commit('UPDATE_TASK_LIST', filtered)
+    commit('UPDATE_SELECTED_GID_LIST', state.selectedGidList.filter((gid) => !pending.includes(gid)))
+    commit('UPDATE_PENDING_REMOVE_GIDS', Array.from(new Set([...state.pendingRemoveGids, ...pending])))
     return api.batchRemoveTask({ gids })
+      .catch((err) => {
+        throw err
+      })
       .finally(() => {
+        const remaining = state.pendingRemoveGids.filter((gid) => !pending.includes(gid))
+        commit('UPDATE_PENDING_REMOVE_GIDS', remaining)
         dispatch('fetchList')
         dispatch('saveSession')
       })
