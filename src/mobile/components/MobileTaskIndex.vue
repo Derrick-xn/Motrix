@@ -243,18 +243,18 @@
       handleBatchDeleteTask (payload) {
         const { deleteWithFiles } = payload
         const { selectedGidList, taskList, noConfirmBeforeDelete } = this
-        if (selectedGidList.length === 0) return
+        const selectedTaskList = selectedGidList.length > 0
+          ? taskList.filter((task) => selectedGidList.includes(task.gid))
+          : taskList
 
-        const selectedTaskList = taskList.filter((task) => {
-          return selectedGidList.includes(task.gid)
-        })
+        if (selectedTaskList.length === 0) return
 
         if (noConfirmBeforeDelete) {
           this.removeTasks(selectedTaskList, deleteWithFiles)
           return
         }
 
-        const count = `${selectedGidList.length}`
+        const count = `${selectedTaskList.length}`
         if (confirm(this.$t('task.batch-delete-task-confirm', { count }))) {
           this.removeTasks(selectedTaskList, deleteWithFiles)
         }
