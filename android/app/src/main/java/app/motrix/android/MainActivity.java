@@ -28,11 +28,8 @@ public class MainActivity extends BridgeActivity {
     private static final int STORAGE_PERMISSION_CODE = 100;
     private static final int MANAGE_STORAGE_CODE = 101;
     private static Process aria2Process;
-    private static final String DEFAULT_BT_TRACKERS =
-        "udp://tracker.opentrackr.org:1337/announce," +
-        "udp://tracker.openbittorrent.com:80/announce," +
-        "udp://tracker.torrent.eu.org:451/announce," +
-        "udp://exodus.desync.com:6969/announce";
+    // Trackers should come from magnet/torrent metadata.
+    // We avoid global overrides here to keep private torrents working.
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -95,6 +92,8 @@ public class MainActivity extends BridgeActivity {
                     "--max-overall-download-limit=0",
                     "--max-download-limit=0",
                     "--enable-dht=true",
+                    "--enable-dht6=false",
+                    "--dht-entry-point=dht.libtorrent.org:25401",
                     "--dht-listen-port=6881-6999",
                     "--dht-file-path=" + dhtFile,
                     "--dht-file-path6=" + dht6File,
@@ -103,7 +102,6 @@ public class MainActivity extends BridgeActivity {
                     "--follow-torrent=true",
                     "--check-integrity=false",
                     "--bt-save-metadata=true",
-                    "--bt-tracker=" + DEFAULT_BT_TRACKERS,
                     "--listen-port=6881-6999",
                     "--daemon=false"
                 );

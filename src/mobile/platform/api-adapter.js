@@ -11,6 +11,24 @@ import {
 import { ENGINE_RPC_HOST } from '@shared/constants'
 
 const CONFIG_KEY = 'motrix-config'
+const DEFAULT_BT_TRACKERS = [
+  'udp://tracker.opentrackr.org:1337/announce',
+  'udp://tracker.openbittorrent.com:80/announce',
+  'udp://tracker.torrent.eu.org:451/announce',
+  'udp://exodus.desync.com:6969/announce',
+  'https://tracker.opentrackr.org:443/announce',
+  'https://tracker.torrent.eu.org:443/announce',
+  'https://tracker2.dler.org:443/announce',
+  'https://tracker1.bt.moack.co.kr:443/announce'
+].join(',')
+
+const isMagnetLink = (uri = '') => {
+  return /^magnet:/i.test(`${uri}`.trim())
+}
+
+const hasMagnetTrackers = (uri = '') => {
+  return /[?&]tr=/i.test(`${uri}`)
+}
 
 function getDefaultConfig () {
   return {
@@ -187,14 +205,24 @@ export default class MobileApi {
   addUri (params) {
     const { uris, outs, options } = params
     const tasks = uris.map((uri, index) => {
-      const engineOptions = formatOptionsForEngine(options)
+      const needsTracker = isMagnetLink(uri) && !hasMagnetTrackers(uri)
+      const hasCustomTracker = options && (options.btTracker || options['bt-tracker'])
+      const extraOptions = needsTracker && !hasCustomTracker
+        ? { btTracker: DEFAULT_BT_TRACKERS }
+        : {}
+      const engineOptions = formatOptionsForEngine({
+        ...options,
+        ...extraOptions
+      })
       if (outs && outs[index]) {
         engineOptions.out = outs[index]
       }
-      const args = compactUndefined([[uri], engineOptions])
-      return ['aria2.addUri', ...args]
+      return compactUndefined([[uri], engineOptions])
     })
-    return this.client.multicall(tasks)
+    if (tasks.length === 1) {
+      return this.client.call('addUri', ...tasks[0])
+    }
+    return Promise.all(tasks.map((args) => this.client.call('addUri', ...args)))
   }
 
   addTorrent (params) {
@@ -216,15 +244,32 @@ export default class MobileApi {
     const activeArgs = compactUndefined([keys])
     const waitingArgs = compactUndefined([offset, num, keys])
     return new Promise((resolve, reject) => {
-      this.client.multicall([
+      const multicall = this.client.multicall([
         ['aria2.tellActive', ...activeArgs],
         ['aria2.tellWaiting', ...waitingArgs]
-      ]).then((data) => {
-        const result = mergeTaskResult(data)
-        resolve(result)
-      }).catch((err) => {
-        reject(err)
+      ])
+
+      const timeout = new Promise((_, rejectTimeout) => {
+        setTimeout(() => rejectTimeout(new Error('multicall-timeout')), 2000)
       })
+
+      Promise.race([multicall, timeout])
+        .then((data) => {
+          const result = mergeTaskResult(data)
+          resolve(result)
+        })
+        .catch(() => {
+          Promise.all([
+            this.client.call('tellActive', ...activeArgs),
+            this.client.call('tellWaiting', ...waitingArgs)
+          ])
+            .then(([active = [], waiting = []]) => {
+              resolve([].concat(active || [], waiting || []))
+            })
+            .catch((err) => {
+              reject(err)
+            })
+        })
     })
   }
 
@@ -275,9 +320,19 @@ export default class MobileApi {
         ['aria2.tellStatus', ...statusArgs],
         ['aria2.getPeers', ...peersArgs]
       ]).then((data) => {
-        const result = data[0] && data[0][0]
-        const peers = data[1] && data[1][0]
-        result.peers = peers || []
+        const statusRes = data && data[0]
+        const peersRes = data && data[1]
+        const statusArr = Array.isArray(statusRes)
+          ? statusRes
+          : (statusRes && Array.isArray(statusRes.result) ? statusRes.result : [])
+        const peersArr = Array.isArray(peersRes)
+          ? peersRes
+          : (peersRes && Array.isArray(peersRes.result) ? peersRes.result : [])
+        const result = statusArr[0] || null
+        const peers = peersArr[0] || []
+        if (result) {
+          result.peers = peers || []
+        }
         resolve(result)
       }).catch((err) => {
         reject(err)

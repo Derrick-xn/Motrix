@@ -353,8 +353,14 @@ export const getAsBase64 = (file, callback) => {
 
 export const mergeTaskResult = (response = []) => {
   let result = []
-  for (const res of response) {
-    result = result.concat(...res)
+  for (const res of response || []) {
+    if (Array.isArray(res)) {
+      result = result.concat(...res)
+      continue
+    }
+    if (res && Array.isArray(res.result)) {
+      result = result.concat(...res.result)
+    }
   }
   return result
 }
