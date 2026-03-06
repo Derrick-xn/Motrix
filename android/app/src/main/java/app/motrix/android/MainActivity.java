@@ -27,12 +27,38 @@ public class MainActivity extends BridgeActivity {
     private static final String TAG = "MotrixMain";
     private static final int STORAGE_PERMISSION_CODE = 100;
     private static final int MANAGE_STORAGE_CODE = 101;
-    private static Process aria2Process;
     private static final String DEFAULT_BT_TRACKERS =
+        "https://tracker.pmman.tech:443/announce," +
+        "https://tr.nyacat.pw:443/announce," +
+        "https://tracker.zhuqiy.com:443/announce," +
+        "https://tracker.moeking.me:443/announce," +
+        "https://tr.zukizuki.org:443/announce," +
+        "https://cny.fan:443/announce," +
+        "https://tracker.iochimari.moe:443/announce," +
+        "https://tracker.opentrackr.org:443/announce," +
+        "https://opentracker.i2p.rocks:443/announce," +
+        "https://torrent.tracker.durukanbal.com:443/announce," +
         "udp://tracker.opentrackr.org:1337/announce," +
-        "udp://tracker.openbittorrent.com:80/announce," +
+        "udp://open.demonii.com:1337/announce," +
+        "udp://open.stealth.si:80/announce," +
         "udp://tracker.torrent.eu.org:451/announce," +
-        "udp://exodus.desync.com:6969/announce";
+        "udp://exodus.desync.com:6969/announce," +
+        "udp://tracker.moeking.me:6969/announce," +
+        "udp://opentracker.io:6969/announce," +
+        "udp://tracker.theoks.net:6969/announce," +
+        "udp://tracker.srv00.com:6969/announce," +
+        "udp://tracker.qu.ax:6969/announce," +
+        "udp://tracker.bittor.pw:1337/announce," +
+        "udp://tracker.alaskantf.com:6969/announce," +
+        "udp://tracker-udp.gbitt.info:80/announce," +
+        "udp://t.overflow.biz:6969/announce," +
+        "udp://open.dstud.io:6969/announce," +
+        "udp://leet-tracker.moe:1337/announce," +
+        "udp://explodie.org:6969/announce," +
+        "udp://bittorrent-tracker.e-n-c-r-y-p-t.net:1337/announce";
+    private static Process aria2Process;
+    // Use a stable open-tracker baseline so metadata->content follow tasks
+    // still have enough peers even when source torrent trackers are sparse.
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -67,6 +93,7 @@ public class MainActivity extends BridgeActivity {
                 String sessionFile = filesDir + "/aria2.session";
                 String dhtFile = cacheDir + "/dht.dat";
                 String dht6File = cacheDir + "/dht6.dat";
+                String logFile = cacheDir + "/aria2.log";
                 File session = new File(sessionFile);
                 if (!session.exists()) {
                     session.createNewFile();
@@ -95,15 +122,26 @@ public class MainActivity extends BridgeActivity {
                     "--max-overall-download-limit=0",
                     "--max-download-limit=0",
                     "--enable-dht=true",
+                    "--enable-dht6=true",
+                    "--dht-entry-point=dht.libtorrent.org:6881",
+                    "--dht-entry-point6=dht.libtorrent.org:25401",
                     "--dht-listen-port=6881-6999",
                     "--dht-file-path=" + dhtFile,
                     "--dht-file-path6=" + dht6File,
-                    "--bt-enable-lpd=true",
+                    "--bt-enable-lpd=false",
+                    "--bt-max-peers=300",
+                    "--bt-request-peer-speed-limit=0",
+                    "--bt-tracker-connect-timeout=15",
+                    "--bt-tracker-timeout=45",
+                    "--bt-tracker=" + DEFAULT_BT_TRACKERS,
                     "--enable-peer-exchange=true",
+                    "--check-certificate=false",
                     "--follow-torrent=true",
                     "--check-integrity=false",
                     "--bt-save-metadata=true",
-                    "--bt-tracker=" + DEFAULT_BT_TRACKERS,
+                    "--log=" + logFile,
+                    "--log-level=debug",
+                    "--console-log-level=debug",
                     "--listen-port=6881-6999",
                     "--daemon=false"
                 );
