@@ -8,6 +8,7 @@ import android.app.Service;
 import android.content.Intent;
 import android.os.Build;
 import android.os.IBinder;
+import android.os.PowerManager;
 
 import app.motrix.android.MainActivity;
 import app.motrix.android.R;
@@ -15,11 +16,13 @@ import app.motrix.android.R;
 public class Aria2Service extends Service {
     private static final String CHANNEL_ID = "motrix_download";
     private static final int NOTIFICATION_ID = 1;
+    private PowerManager.WakeLock wakeLock;
 
     @Override
     public void onCreate() {
         super.onCreate();
         createNotificationChannel();
+        acquireWakeLock();
     }
 
     @Override
@@ -32,6 +35,12 @@ public class Aria2Service extends Service {
     @Override
     public IBinder onBind(Intent intent) {
         return null;
+    }
+
+    @Override
+    public void onDestroy() {
+        releaseWakeLock();
+        super.onDestroy();
     }
 
     private void createNotificationChannel() {
@@ -91,5 +100,26 @@ public class Aria2Service extends Service {
         if (manager != null) {
             manager.notify(NOTIFICATION_ID, notification);
         }
+    }
+
+    private void acquireWakeLock() {
+        PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
+        if (powerManager == null) {
+            return;
+        }
+
+        wakeLock = powerManager.newWakeLock(
+            PowerManager.PARTIAL_WAKE_LOCK,
+            "Motrix:Aria2WakeLock"
+        );
+        wakeLock.setReferenceCounted(false);
+        wakeLock.acquire();
+    }
+
+    private void releaseWakeLock() {
+        if (wakeLock != null && wakeLock.isHeld()) {
+            wakeLock.release();
+        }
+        wakeLock = null;
     }
 }

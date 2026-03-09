@@ -74,11 +74,18 @@ function getDefaultConfig () {
     'rpc-secret': '',
     locale: navigator.language || 'en-US',
     theme: 'auto',
-    dir: '/storage/emulated/0/Download',
+    dir: '',
     'task-notification': true,
     split: 16,
+    'follow-torrent': true,
+    'bt-save-metadata': true,
+    'seed-ratio': 2,
+    'seed-time': 2880,
     'max-concurrent-downloads': 5,
     'max-connection-per-server': 16,
+    'max-overall-download-limit': 0,
+    'max-overall-upload-limit': 0,
+    'keep-seeding': false,
     continue: true,
     'user-agent': 'Motrix/1.8.19'
   }
@@ -186,9 +193,17 @@ export default class MobileApi {
     this.saveConfigToLocalStorage(kebabParams)
 
     const { system } = separateConfig(kebabParams)
-    if (!isEmpty(system)) {
-      this.updateActiveTaskOption(system)
+    if (isEmpty(system)) {
+      return Promise.resolve()
     }
+
+    return this.changeGlobalOption(system)
+      .catch((err) => {
+        console.warn('[Mobile] Failed to apply global engine options:', err)
+      })
+      .finally(() => {
+        this.updateActiveTaskOption(system)
+      })
   }
 
   getVersion () {
@@ -287,8 +302,8 @@ export default class MobileApi {
         ['aria2.tellWaiting', ...waitingArgs]
       ])
 
-      const timeout = new Promise((_, rejectTimeout) => {
-        setTimeout(() => rejectTimeout(new Error('multicall-timeout')), 2000)
+      const timeout = new Promise((_resolve, reject) => {
+        setTimeout(() => reject(new Error('multicall-timeout')), 2000)
       })
 
       Promise.race([multicall, timeout])

@@ -1,7 +1,10 @@
 package app.motrix.android.plugins;
 
+import android.content.Intent;
 import android.os.Environment;
 import android.util.Log;
+
+import androidx.core.content.ContextCompat;
 
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -9,12 +12,16 @@ import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
+import app.motrix.android.services.Aria2Service;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.List;
 
 @CapacitorPlugin(name = "Aria2Engine")
 public class Aria2EnginePlugin extends Plugin {
@@ -48,8 +55,9 @@ public class Aria2EnginePlugin extends Plugin {
         "udp://leet-tracker.moe:1337/announce," +
         "udp://explodie.org:6969/announce," +
         "udp://bittorrent-tracker.e-n-c-r-y-p-t.net:1337/announce";
-    private Process aria2Process;
-    private int aria2Pid = -1;
+    private static Process aria2Process;
+    private static int aria2Pid = -1;
+    private static String activeDownloadDir = "";
     // Use a stable open-tracker baseline so metadata->content follow tasks
     // still have enough peers even when source torrent trackers are sparse.
 
@@ -57,127 +65,128 @@ public class Aria2EnginePlugin extends Plugin {
     public void startEngine(PluginCall call) {
         int rpcPort = call.getInt("rpcPort", 16800);
         String rpcSecret = call.getString("rpcSecret", "");
-        String dir = call.getString("dir",
-            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath());
-        int maxConcurrent = call.getInt("maxConcurrentDownloads", 5);
-        int maxConnection = call.getInt("maxConnectionPerServer", 16);
+        String preferredDir = call.getString("dir", "");
+        String btTracker = call.getString("btTracker", DEFAULT_BT_TRACKERS);
+        int maxConcurrent = Math.max(call.getInt("maxConcurrentDownloads", 5), 1);
+        int maxConnection = Math.max(call.getInt("maxConnectionPerServer", 16), 1);
+        int split = Math.max(call.getInt("split", 16), 1);
 
         try {
+            startForegroundService();
+
+            if (aria2Process != null && !isProcessAlive(aria2Process)) {
+                aria2Process = null;
+                aria2Pid = -1;
+                activeDownloadDir = "";
+            }
+
             if (aria2Process != null && isProcessAlive(aria2Process)) {
-                JSObject result = new JSObject();
-                result.put("started", true);
-                result.put("message", "aria2 engine already running");
-                result.put("pid", aria2Pid);
-                call.resolve(result);
+                call.resolve(buildResult(true, "aria2 engine already running"));
                 return;
             }
 
             String aria2Path = resolveAria2Binary();
             if (aria2Path == null) {
-                JSObject result = new JSObject();
-                result.put("started", false);
-                result.put("message", "Failed to extract aria2 binary");
-                call.resolve(result);
+                call.resolve(buildResult(false, "Failed to extract aria2 binary"));
                 return;
             }
 
             String filesDir = getContext().getFilesDir().getAbsolutePath();
             String cacheDir = getContext().getCacheDir().getAbsolutePath();
             String sessionFile = filesDir + "/aria2.session";
-            String dhtFile = cacheDir + "/dht.dat";
-            String dht6File = cacheDir + "/dht6.dat";
+            String dhtFile = filesDir + "/dht.dat";
+            String dht6File = filesDir + "/dht6.dat";
             String logFile = cacheDir + "/aria2.log";
+            String dir = resolveDownloadDir(preferredDir);
             File session = new File(sessionFile);
             if (!session.exists()) {
                 session.createNewFile();
             }
 
             String confDir = getContext().getFilesDir().getAbsolutePath();
+            List<String> command = new ArrayList<>();
+            command.add(aria2Path);
+            command.add("--enable-rpc");
+            command.add("--rpc-listen-all=false");
+            command.add("--rpc-listen-port=" + rpcPort);
+            command.add("--rpc-allow-origin-all");
+            if (rpcSecret != null && !rpcSecret.trim().isEmpty()) {
+                command.add("--rpc-secret=" + rpcSecret.trim());
+            }
+            command.add("--dir=" + dir);
+            command.add("--max-concurrent-downloads=" + maxConcurrent);
+            command.add("--max-connection-per-server=" + maxConnection);
+            command.add("--split=" + split);
+            command.add("--min-split-size=1M");
+            command.add("--continue=true");
+            command.add("--allow-overwrite=true");
+            command.add("--auto-file-renaming=true");
+            command.add("--save-session=" + sessionFile);
+            command.add("--input-file=" + sessionFile);
+            command.add("--save-session-interval=10");
+            command.add("--disk-cache=64M");
+            command.add("--file-allocation=none");
+            command.add("--max-overall-download-limit=0");
+            command.add("--max-download-limit=0");
+            command.add("--max-overall-upload-limit=0");
+            command.add("--enable-dht=true");
+            command.add("--enable-dht6=true");
+            command.add("--dht-entry-point=dht.libtorrent.org:6881");
+            command.add("--dht-entry-point6=dht.libtorrent.org:25401");
+            command.add("--dht-listen-port=6881-6999");
+            command.add("--dht-file-path=" + dhtFile);
+            command.add("--dht-file-path6=" + dht6File);
+            command.add("--bt-enable-lpd=false");
+            command.add("--bt-max-peers=300");
+            command.add("--bt-request-peer-speed-limit=0");
+            command.add("--bt-tracker-connect-timeout=15");
+            command.add("--bt-tracker-timeout=45");
+            command.add("--bt-load-saved-metadata=true");
+            command.add("--bt-tracker=" + normalizeTrackerList(btTracker));
+            command.add("--enable-peer-exchange=true");
+            command.add("--check-certificate=false");
+            command.add("--follow-torrent=true");
+            command.add("--check-integrity=false");
+            command.add("--bt-save-metadata=true");
+            command.add("--seed-ratio=2");
+            command.add("--seed-time=2880");
+            command.add("--log=" + logFile);
+            command.add("--log-level=warn");
+            command.add("--console-log-level=warn");
+            command.add("--listen-port=6881-6999");
+            command.add("--daemon=false");
 
-            ProcessBuilder pb = new ProcessBuilder(
-                aria2Path,
-                "--enable-rpc",
-                "--rpc-listen-all=false",
-                "--rpc-listen-port=" + rpcPort,
-                "--rpc-allow-origin-all",
-                "--rpc-secret=" + rpcSecret,
-                "--dir=" + dir,
-                "--max-concurrent-downloads=" + maxConcurrent,
-                "--max-connection-per-server=" + maxConnection,
-                "--split=16",
-                "--min-split-size=1M",
-                "--continue=true",
-                "--allow-overwrite=true",
-                "--auto-file-renaming=true",
-                "--save-session=" + sessionFile,
-                "--input-file=" + sessionFile,
-                "--save-session-interval=10",
-                "--disk-cache=64M",
-                "--file-allocation=none",
-                "--max-overall-download-limit=0",
-                "--max-download-limit=0",
-                "--enable-dht=true",
-                "--enable-dht6=true",
-                "--dht-entry-point=dht.libtorrent.org:6881",
-                "--dht-entry-point6=dht.libtorrent.org:25401",
-                "--dht-listen-port=6881-6999",
-                "--dht-file-path=" + dhtFile,
-                "--dht-file-path6=" + dht6File,
-                "--bt-enable-lpd=false",
-                "--bt-max-peers=300",
-                "--bt-request-peer-speed-limit=0",
-                "--bt-tracker-connect-timeout=15",
-                "--bt-tracker-timeout=45",
-                "--bt-tracker=" + DEFAULT_BT_TRACKERS,
-                "--enable-peer-exchange=true",
-                "--check-certificate=false",
-                "--follow-torrent=true",
-                "--check-integrity=false",
-                "--bt-save-metadata=true",
-                "--log=" + logFile,
-                "--log-level=debug",
-                "--console-log-level=debug",
-                "--listen-port=6881-6999",
-                "--daemon=false"
-            );
-
+            ProcessBuilder pb = new ProcessBuilder(command);
             pb.directory(new File(confDir));
             pb.redirectErrorStream(true);
             aria2Process = pb.start();
 
-            new Thread(() -> {
-                try {
-                    BufferedReader reader = new BufferedReader(
-                        new InputStreamReader(aria2Process.getInputStream()));
-                    String line;
-                    while ((line = reader.readLine()) != null) {
-                        Log.d(TAG, "aria2: " + line);
-                    }
-                } catch (IOException e) {
-                    Log.e(TAG, "Error reading aria2 output", e);
-                }
-            }).start();
+            Process process = aria2Process;
+            Thread outputThread = new Thread(() -> consumeProcessOutput(process), "aria2-output");
+            outputThread.setDaemon(true);
+            outputThread.start();
 
-            Thread.sleep(500);
+            Thread.sleep(750);
 
             if (isProcessAlive(aria2Process)) {
-                JSObject result = new JSObject();
-                result.put("started", true);
-                result.put("message", "aria2 engine started successfully");
-                result.put("pid", getProcessId(aria2Process));
-                call.resolve(result);
+                aria2Pid = getProcessId(aria2Process);
+                activeDownloadDir = dir;
+                call.resolve(buildResult(true, "aria2 engine started successfully"));
             } else {
-                JSObject result = new JSObject();
-                result.put("started", false);
-                result.put("message", "aria2 engine failed to start");
-                call.resolve(result);
+                int exitCode = aria2Process.exitValue();
+                aria2Process = null;
+                aria2Pid = -1;
+                activeDownloadDir = "";
+                stopForegroundService();
+                call.resolve(buildResult(false, "aria2 engine failed to start (exit code " + exitCode + ")"));
             }
         } catch (Exception e) {
             Log.e(TAG, "Failed to start aria2 engine", e);
-            JSObject result = new JSObject();
-            result.put("started", false);
-            result.put("message", "Error: " + e.getMessage());
-            call.resolve(result);
+            aria2Process = null;
+            aria2Pid = -1;
+            activeDownloadDir = "";
+            stopForegroundService();
+            call.resolve(buildResult(false, "Error: " + e.getMessage()));
         }
     }
 
@@ -187,7 +196,9 @@ public class Aria2EnginePlugin extends Plugin {
             aria2Process.destroy();
             aria2Process = null;
             aria2Pid = -1;
+            activeDownloadDir = "";
         }
+        stopForegroundService();
         JSObject result = new JSObject();
         result.put("stopped", true);
         call.resolve(result);
@@ -195,10 +206,9 @@ public class Aria2EnginePlugin extends Plugin {
 
     @PluginMethod()
     public void getEngineStatus(PluginCall call) {
-        JSObject result = new JSObject();
         boolean running = aria2Process != null && isProcessAlive(aria2Process);
-        result.put("running", running);
-        result.put("pid", aria2Pid);
+        JSObject result = buildResult(running, "ok");
+        result.put("started", running);
         call.resolve(result);
     }
 
@@ -207,6 +217,106 @@ public class Aria2EnginePlugin extends Plugin {
         JSObject result = new JSObject();
         result.put("running", aria2Process != null && isProcessAlive(aria2Process));
         call.resolve(result);
+    }
+
+    private void startForegroundService() {
+        Intent intent = new Intent(getContext(), Aria2Service.class);
+        ContextCompat.startForegroundService(getContext(), intent);
+    }
+
+    private void stopForegroundService() {
+        Intent intent = new Intent(getContext(), Aria2Service.class);
+        getContext().stopService(intent);
+    }
+
+    private JSObject buildResult(boolean started, String message) {
+        JSObject result = new JSObject();
+        boolean running = aria2Process != null && isProcessAlive(aria2Process);
+        result.put("started", started);
+        result.put("running", running);
+        result.put("message", message);
+        result.put("pid", aria2Pid);
+        result.put("dir", activeDownloadDir);
+        return result;
+    }
+
+    private String normalizeTrackerList(String trackerList) {
+        if (trackerList == null) {
+            return DEFAULT_BT_TRACKERS;
+        }
+        String value = trackerList.trim();
+        return value.isEmpty() ? DEFAULT_BT_TRACKERS : value;
+    }
+
+    private String resolveDownloadDir(String preferredDir) {
+        List<File> candidates = new ArrayList<>();
+        if (preferredDir != null && !preferredDir.trim().isEmpty()) {
+            candidates.add(new File(preferredDir.trim()));
+        }
+
+        File appExternalDownloads = getContext().getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
+        if (appExternalDownloads != null) {
+            candidates.add(appExternalDownloads);
+        }
+
+        File publicDownloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+        if (publicDownloads != null) {
+            candidates.add(publicDownloads);
+        }
+
+        candidates.add(new File(getContext().getFilesDir(), "downloads"));
+
+        for (File candidate : candidates) {
+            if (candidate == null) {
+                continue;
+            }
+            if (ensureWritableDirectory(candidate)) {
+                Log.i(TAG, "Using download directory: " + candidate.getAbsolutePath());
+                return candidate.getAbsolutePath();
+            }
+        }
+
+        String fallback = getContext().getFilesDir().getAbsolutePath();
+        Log.w(TAG, "Falling back to app files dir for downloads: " + fallback);
+        return fallback;
+    }
+
+    private boolean ensureWritableDirectory(File dir) {
+        try {
+            if (dir.exists()) {
+                if (!dir.isDirectory()) {
+                    return false;
+                }
+            } else if (!dir.mkdirs()) {
+                return false;
+            }
+
+            File probe = new File(dir, ".motrix-write-test");
+            if (probe.exists() || probe.createNewFile()) {
+                //noinspection ResultOfMethodCallIgnored
+                probe.delete();
+                return true;
+            }
+        } catch (IOException e) {
+            Log.w(TAG, "Directory is not writable: " + dir.getAbsolutePath(), e);
+        }
+        return false;
+    }
+
+    private void consumeProcessOutput(Process process) {
+        try {
+            BufferedReader reader = new BufferedReader(
+                new InputStreamReader(process.getInputStream()));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String normalized = line.toLowerCase();
+                if (normalized.contains("error") || normalized.contains("exception")) {
+                    Log.w(TAG, "aria2: " + line);
+                }
+            }
+        } catch (IOException e) {
+            Log.e(TAG, "Error reading aria2 output", e);
+        }
     }
 
     private String resolveAria2Binary() {
@@ -288,8 +398,7 @@ public class Aria2EnginePlugin extends Plugin {
         try {
             java.lang.reflect.Field pidField = process.getClass().getDeclaredField("pid");
             pidField.setAccessible(true);
-            aria2Pid = pidField.getInt(process);
-            return aria2Pid;
+            return pidField.getInt(process);
         } catch (Exception e) {
             return -1;
         }
@@ -297,10 +406,6 @@ public class Aria2EnginePlugin extends Plugin {
 
     @Override
     protected void handleOnDestroy() {
-        if (aria2Process != null) {
-            aria2Process.destroy();
-            aria2Process = null;
-        }
         super.handleOnDestroy();
     }
 }

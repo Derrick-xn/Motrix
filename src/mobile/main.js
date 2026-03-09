@@ -9,8 +9,56 @@ import store from './store'
 import { getLocaleManager } from '@/components/Locale'
 import Icon from '@/components/Icons/Icon'
 import Msg from '@/components/Msg'
+import Aria2Engine from './plugins/aria2-engine'
 import '@/components/Theme/Index.scss'
 import './styles/mobile.scss'
+
+const CONFIG_KEY = 'motrix-config'
+
+function persistConfigPatch (patch = {}) {
+  try {
+    const raw = localStorage.getItem(CONFIG_KEY)
+    const current = raw ? JSON.parse(raw) : {}
+    localStorage.setItem(CONFIG_KEY, JSON.stringify({
+      ...current,
+      ...patch
+    }))
+  } catch (err) {
+    console.warn('[Motrix Mobile] failed to persist config patch:', err)
+  }
+}
+
+async function ensureNativeEngine (config = {}) {
+  try {
+    const result = await Aria2Engine.startEngine({
+      rpcPort: Number(config.rpcListenPort) || 16800,
+      rpcSecret: config.rpcSecret || '',
+      dir: config.dir || '',
+      split: Number(config.split) || 16,
+      btTracker: config.btTracker || '',
+      maxConcurrentDownloads: Number(config.maxConcurrentDownloads) || 5,
+      maxConnectionPerServer: Number(config.maxConnectionPerServer) || 16
+    })
+
+    if (result && result.message) {
+      console.info('[Motrix Mobile] engine status:', result.message)
+    }
+
+    if (result && result.dir && result.dir !== config.dir) {
+      const nextConfig = {
+        ...config,
+        dir: result.dir
+      }
+      persistConfigPatch({ dir: result.dir })
+      store.dispatch('preference/updatePreference', nextConfig)
+      return nextConfig
+    }
+  } catch (err) {
+    console.error('[Motrix Mobile] failed to start native engine:', err)
+  }
+
+  return config
+}
 
 function init (config) {
   Vue.http = Vue.prototype.$http = null
@@ -60,9 +108,10 @@ function init (config) {
 }
 
 store.dispatch('preference/fetchPreference')
-  .then((config) => {
-    console.info('[Motrix Mobile] load preference:', config)
-    init(config)
+  .then(async (config) => {
+    const readyConfig = await ensureNativeEngine(config)
+    console.info('[Motrix Mobile] load preference:', readyConfig)
+    init(readyConfig)
   })
   .catch((err) => {
     console.error('[Motrix Mobile] init error:', err)

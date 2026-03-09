@@ -5,11 +5,19 @@ export interface Aria2EnginePlugin {
     dir?: string;
     maxConcurrentDownloads?: number;
     maxConnectionPerServer?: number;
-  }): Promise<{ started: boolean; message?: string; pid?: number }>;
+    split?: number;
+    btTracker?: string;
+  }): Promise<{
+    started: boolean;
+    running?: boolean;
+    message?: string;
+    pid?: number;
+    dir?: string;
+  }>;
 
   stopEngine(): Promise<{ stopped: boolean }>;
 
-  getEngineStatus(): Promise<{ running: boolean; pid: number }>;
+  getEngineStatus(): Promise<{ running: boolean; pid: number; dir?: string }>;
 
   isEngineRunning(): Promise<{ running: boolean }>;
 }
